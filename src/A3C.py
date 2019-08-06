@@ -119,7 +119,8 @@ class Worker(object):
                 # if self.name == 'W_0':
                 #     self.env.render()
                 a = self.AC.choose_action(s)
-                s_, r, done, info = self.env.step(a)
+                with threading.Lock:
+                    s_, r, done, info = self.env.step(a)
                 done = True if ep_t == MAX_EP_STEP - 1 else False
 
                 ep_r += r
