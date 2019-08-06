@@ -33,12 +33,18 @@ N_A = env.action_space.shape[0]
 A_BOUND = [env.action_space.low, env.action_space.high]
 
 
+print ("N_S: " + str(N_S))
+print ("N_A: " + str(N_A))
+print ("A_BOUND: " + str(A_BOUND))
+
 class ACNet(object):
     def __init__(self, scope, globalAC=None):
 
         if scope == GLOBAL_NET_SCOPE:   # get global network
             with tf.variable_scope(scope):
+                ### define here all layers before actor/critic division
                 self.s = tf.placeholder(tf.float32, [None, N_S], 'S')
+
                 self.a_params, self.c_params = self._build_net(scope)[-2:]
         else:   # local net, calculate losses
             with tf.variable_scope(scope):
@@ -84,6 +90,7 @@ class ACNet(object):
             l_a = tf.layers.dense(self.s, 200, tf.nn.relu6, kernel_initializer=w_init, name='la')
             mu = tf.layers.dense(l_a, N_A, tf.nn.tanh, kernel_initializer=w_init, name='mu')
             sigma = tf.layers.dense(l_a, N_A, tf.nn.softplus, kernel_initializer=w_init, name='sigma')
+            
         with tf.variable_scope('critic'):
             l_c = tf.layers.dense(self.s, 100, tf.nn.relu6, kernel_initializer=w_init, name='lc')
             v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='v')  # state value
@@ -119,7 +126,7 @@ class Worker(object):
                 # if self.name == 'W_0':
                 #     self.env.render()
                 a = self.AC.choose_action(s)
-                with threading.Lock:
+                with threading.Lock():
                     s_, r, done, info = self.env.step(a)
                 done = True if ep_t == MAX_EP_STEP - 1 else False
 

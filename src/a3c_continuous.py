@@ -10,6 +10,7 @@ import gym
 import os
 import shutil
 import matplotlib.pyplot as plt
+import time
 
 from master_network import MasterNetwork
 from agent import Agent
@@ -20,9 +21,14 @@ if __name__ == "__main__":
     Netshare.SESS = tf.Session()
     env = gym.make(Constants.GAME)
 
-    Netshare.N_S = env.observation_space.shape[0]
-    Netshare.N_A = env.action_space.shape[0]
-    Netshare.A_BOUND = [env.action_space.low, env.action_space.high]
+    # N_S[0] has None for sample placeholders, followed by the state space shape
+    Netshare.N_S = [None]
+    Netshare.N_S.extend(np.asarray(env.observation_space.shape))
+    # N_A[0] has None for sample placeholders, followed by the action space shape
+    Netshare.N_A = [None]
+    Netshare.N_A.extend(np.asarray(env.action_space.shape))
+    # A_BOUND[0] contains the minimums, A_BOUND[1] contains the maximums, each dependent on action space shape
+    Netshare.A_BOUND = np.vstack((np.array(env.action_space.low), np.array(env.action_space.high)))
 
     print ("N_S: " + str(Netshare.N_S))
     print ("N_A: " + str(Netshare.N_A))
@@ -52,6 +58,7 @@ if __name__ == "__main__":
         t = threading.Thread(target=job)
         t.start()
         worker_threads.append(t)
+        
     Netshare.COORD.join(worker_threads)
 
     plt.plot(np.arange(len(Constants.GLOBAL_RUNNING_R)), Constants.GLOBAL_RUNNING_R)
