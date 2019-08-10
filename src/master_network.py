@@ -7,12 +7,12 @@ class MasterNetwork(object):
 
         if scope == Constants.GLOBAL_NET_SCOPE:   # get global network
             with tf.variable_scope(scope):
-                self.s = tf.placeholder(tf.float32, [None, Netshare.N_S], 'S')
+                self.s = tf.placeholder(tf.float32, Netshare.N_S, 'S')
                 self.a_params, self.c_params = self._build_net(scope)[-2:]
         else:   # local net, calculate losses
             with tf.variable_scope(scope):
-                self.s = tf.placeholder(tf.float32, [None, Netshare.N_S], 'S')
-                self.a_his = tf.placeholder(tf.float32, [None, Netshare.N_A], 'A')
+                self.s = tf.placeholder(tf.float32, Netshare.N_S, 'S')
+                self.a_his = tf.placeholder(tf.float32, Netshare.N_A, 'A')
                 self.v_target = tf.placeholder(tf.float32, [None, 1], 'Vtarget')
 
                 mu, sigma, self.v, self.a_params, self.c_params = self._build_net(scope)
@@ -50,9 +50,11 @@ class MasterNetwork(object):
     def _build_net(self, scope):
         w_init = tf.random_normal_initializer(0., .1)
         with tf.variable_scope('actor'):
+            # N_A[0] has None placeholder for samples, so the real number of actions if in N_A[1]
             l_a = tf.layers.dense(self.s, 200, tf.nn.relu6, kernel_initializer=w_init, name='la')
-            mu = tf.layers.dense(l_a, Netshare.N_A, tf.nn.tanh, kernel_initializer=w_init, name='mu')
-            sigma = tf.layers.dense(l_a, Netshare.N_A, tf.nn.softplus, kernel_initializer=w_init, name='sigma')
+            mu = tf.layers.dense(l_a, Netshare.N_A[1], tf.nn.tanh, kernel_initializer=w_init, name='mu')
+            sigma = tf.layers.dense(l_a, Netshare.N_A[1], tf.nn.softplus, kernel_initializer=w_init, name='sigma')
+
         with tf.variable_scope('critic'):
             l_c = tf.layers.dense(self.s, 100, tf.nn.relu6, kernel_initializer=w_init, name='lc')
             v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='v')  # state value

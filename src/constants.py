@@ -3,10 +3,12 @@ import tensorflow as tf
 import multiprocessing
 import threading
 
+#Pendulum-v0
+#CarRacing-v0
 GAME = 'CarRacing-v0'
 OUTPUT_GRAPH = True
 LOG_DIR = './log'
-N_WORKERS = multiprocessing.cpu_count()
+N_WORKERS = 4   #multiprocessing.cpu_count()
 MAX_EP_STEP = 200
 MAX_GLOBAL_EP = 2000
 GLOBAL_NET_SCOPE = 'Global_Net'

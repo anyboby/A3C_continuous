@@ -19,7 +19,6 @@ node_modules
 **/.vscode/.ropeproject/**
 **/testFiles/**/.cache/**
 *.noseids
-*.tfevents.*
 .nyc_output
 .vscode-test
 __pycache__
@@ -38,6 +37,7 @@ languageServer/**
 languageServer.*/**
 bin/**
 obj/**
+*.tfevents.*
 .pytest_cache
 tmp/**
 .python-version

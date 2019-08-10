@@ -4,34 +4,48 @@ import network_shares as Netshare
 
 import gym
 import numpy as np
+import threading
 
 
 
-class Agent(object):
+class Agent(threading.Thread):
+    env_lock = threading.Lock()
+    
     def __init__(self, name, globalAC):
+        threading.Thread.__init__(self)
         self.env = gym.make(Constants.GAME).unwrapped
         self.name = name
         self.AC = MasterNetwork(name, globalAC)
 
     def work(self):
         #global GLOBAL_RUNNING_R, GLOBAL_EP
+
         total_step = 1
         buffer_s, buffer_a, buffer_r = [], [], []
+
         while not Netshare.COORD.should_stop() and Constants.GLOBAL_EP < Constants.MAX_GLOBAL_EP:
-            s = self.env.reset()
+
+            #lock in case gym backend not threadsafe
+            with Agent.env_lock:
+                s = self.env.reset()
+
+
             ep_r = 0
             for ep_t in range(Constants.MAX_EP_STEP):
                 # if self.name == 'W_0':
                 #     self.env.render()
                 a = self.AC.choose_action(s)
-                s_, r, done, info = self.env.step(a)
+
+                with Agent.env_lock:
+                    print("action: " + str(a),flush=True)
+                    s_, r, done, info = self.env.step(a)
+                
                 done = True if ep_t == Constants.MAX_EP_STEP - 1 else False
 
                 ep_r += r
                 buffer_s.append(s)
                 buffer_a.append(a)
                 buffer_r.append((r+8)/8)    # normalize
-
                 if total_step % Constants.UPDATE_GLOBAL_ITER == 0 or done:   # update global and assign to local net
                     if done:
                         v_s_ = 0   # terminal
@@ -42,7 +56,6 @@ class Agent(object):
                         v_s_ = r + Constants.GAMMA * v_s_
                         buffer_v_target.append(v_s_)
                     buffer_v_target.reverse()
-
                     buffer_s, buffer_a, buffer_v_target = np.vstack(buffer_s), np.vstack(buffer_a), np.vstack(buffer_v_target)
                     feed_dict = {
                         self.AC.s: buffer_s,
@@ -52,7 +65,6 @@ class Agent(object):
                     self.AC.update_global(feed_dict)
                     buffer_s, buffer_a, buffer_r = [], [], []
                     self.AC.pull_global()
-
                 s = s_
                 total_step += 1
                 if done:
