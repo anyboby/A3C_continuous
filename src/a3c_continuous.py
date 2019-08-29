@@ -41,9 +41,11 @@ if __name__ == "__main__":
         GLOBAL_AC = MasterNetwork(Constants.GLOBAL_NET_SCOPE)  # we only need its params
         workers = []
         # Create worker
-        for i in range(Constants.N_WORKERS):
+        for i in range(Constants.N_WORKERS-1):
             i_name = 'W_%i' % i   # worker name
             workers.append(Agent(i_name, GLOBAL_AC))
+        # Create one worker with opencv showing 
+        workers.append(Agent("W_%i"%Constants.N_WORKERS, GLOBAL_AC, cvshow=True))
 
     Netshare.SESS.run(tf.global_variables_initializer())
 

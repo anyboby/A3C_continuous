@@ -7,10 +7,12 @@ class MasterNetwork(object):
 
         if scope == Constants.GLOBAL_NET_SCOPE:   # get global network
             with tf.variable_scope(scope):
+                #print ("scope: " + str(scope))
                 self.s = tf.placeholder(tf.float32, Netshare.N_S, 'S')
                 self.a_params, self.c_params = self._build_net(scope)[-2:]
         else:   # local net, calculate losses
             with tf.variable_scope(scope):
+                #print ("scope: " + str(scope))
                 self.s = tf.placeholder(tf.float32, Netshare.N_S, 'S')
                 self.a_his = tf.placeholder(tf.float32, Netshare.N_A, 'A')
                 self.v_target = tf.placeholder(tf.float32, [None, 1], 'Vtarget')
@@ -21,10 +23,16 @@ class MasterNetwork(object):
                 with tf.name_scope('c_loss'):
                     self.c_loss = tf.reduce_mean(tf.square(td))
 
+
+
+                #choose actions from normal dist
                 with tf.name_scope('wrap_a_out'):
                     mu, sigma = mu * Netshare.A_BOUND[1], sigma + 1e-4
-
                 normal_dist = tf.distributions.Normal(mu, sigma)
+                
+                #print("mu shape: " + str(mu.shape))
+                #print("sigma shape: " + str(sigma.shape))
+                #print("normal shape: " + str(normal_dist))
 
                 with tf.name_scope('a_loss'):
                     log_prob = normal_dist.log_prob(self.a_his)
@@ -38,6 +46,8 @@ class MasterNetwork(object):
                 with tf.name_scope('local_grad'):
                     self.a_grads = tf.gradients(self.a_loss, self.a_params)
                     self.c_grads = tf.gradients(self.c_loss, self.c_params)
+                #print("sigma shape: " + str(self.A))
+
 
             with tf.name_scope('sync'):
                 with tf.name_scope('pull'):
@@ -52,12 +62,19 @@ class MasterNetwork(object):
         with tf.variable_scope('actor'):
             # N_A[0] has None placeholder for samples, so the real number of actions if in N_A[1]
             l_a = tf.layers.dense(self.s, 200, tf.nn.relu6, kernel_initializer=w_init, name='la')
-            mu = tf.layers.dense(l_a, Netshare.N_A[1], tf.nn.tanh, kernel_initializer=w_init, name='mu')
-            sigma = tf.layers.dense(l_a, Netshare.N_A[1], tf.nn.softplus, kernel_initializer=w_init, name='sigma')
+            fl_a = tf.layers.flatten(l_a, name='fl_a')
+            mu = tf.layers.dense(fl_a, Netshare.N_A[1], tf.nn.tanh, kernel_initializer=w_init, name='mu')
+            sigma = tf.layers.dense(fl_a, Netshare.N_A[1], tf.nn.softplus, kernel_initializer=w_init, name='sigma')
+            #print("N_A[1] shape: " + str(Netshare.N_A[1]))
+            #print("l_a shape: " + str(l_a.shape))
+            #print("l_f shape: " + str(l_f.shape))
+            #print("self.s shape: " + str(self.s.shape))
+            #print("mu shape2: " + str(mu.shape))
 
         with tf.variable_scope('critic'):
             l_c = tf.layers.dense(self.s, 100, tf.nn.relu6, kernel_initializer=w_init, name='lc')
-            v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='v')  # state value
+            fl_c = tf.layers.flatten(l_c, name='fl_c')
+            v = tf.layers.dense(fl_c, 1, kernel_initializer=w_init, name='v')  # state value
         a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/actor')
         c_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/critic')
         return mu, sigma, v, a_params, c_params
@@ -70,4 +87,5 @@ class MasterNetwork(object):
 
     def choose_action(self, s):  # run by a local
         s = s[np.newaxis, :]
-        return Netshare.SESS.run(self.A, {self.s: s})
+        result = Netshare.SESS.run(self.A, {self.s: s})
+        return result
