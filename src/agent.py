@@ -1,6 +1,7 @@
 import constants as Constants
 from master_network import MasterNetwork
 import network_shares as Netshare
+import cv2
 
 import gym
 import numpy as np
@@ -11,11 +12,12 @@ import threading
 class Agent(threading.Thread):
     env_lock = threading.Lock()
     
-    def __init__(self, name, globalAC):
+    def __init__(self, name, globalAC, cvshow = False):
         threading.Thread.__init__(self)
         self.env = gym.make(Constants.GAME).unwrapped
         self.name = name
         self.AC = MasterNetwork(name, globalAC)
+        self.cvshow = cvshow
 
     def work(self):
         #global GLOBAL_RUNNING_R, GLOBAL_EP
@@ -37,14 +39,14 @@ class Agent(threading.Thread):
                 a = self.AC.choose_action(s)
 
                 with Agent.env_lock:
-                    print("action: " + str(a),flush=True)
+                    #print("action: " + str(a),flush=True)
                     s_, r, done, info = self.env.step(a)
                 
                 done = True if ep_t == Constants.MAX_EP_STEP - 1 else False
 
                 ep_r += r
-                buffer_s.append(s)
-                buffer_a.append(a)
+                buffer_s.append([s])
+                buffer_a.append([a])
                 buffer_r.append((r+8)/8)    # normalize
                 if total_step % Constants.UPDATE_GLOBAL_ITER == 0 or done:   # update global and assign to local net
                     if done:
@@ -66,6 +68,13 @@ class Agent(threading.Thread):
                     buffer_s, buffer_a, buffer_r = [], [], []
                     self.AC.pull_global()
                 s = s_
+                
+                #skip frames for speed
+                if self.cvshow:
+                    cv2.imshow("image", s)
+                    cv2.waitKey(Constants.WAITKEY)
+
+
                 total_step += 1
                 if done:
                     if len(Constants.GLOBAL_RUNNING_R) == 0:  # record running episode reward
