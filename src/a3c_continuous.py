@@ -22,17 +22,26 @@ if __name__ == "__main__":
     env = gym.make(Constants.GAME)
 
     # N_S[0] has None for sample placeholders, followed by the state space shape
-    Netshare.N_S = [None]
-    Netshare.N_S.extend(np.asarray(env.observation_space.shape))
-    # N_A[0] has None for sample placeholders, followed by the action space shape
-    Netshare.N_A = [None]
-    Netshare.N_A.extend(np.asarray(env.action_space.shape))
-    # A_BOUND[0] contains the minimums, A_BOUND[1] contains the maximums, each dependent on action space shape
-    Netshare.A_BOUND = np.vstack((np.array(env.action_space.low), np.array(env.action_space.high)))
+    Netshare.DIM_S = [None]
+    if Constants.manual_dims:
+        Netshare.DIM_S.extend(Constants.DIMS_S)
+    else:
+        Netshare.DIM_S.extend(np.asarray(env.observation_space.shape))
 
-    print ("N_S: " + str(Netshare.N_S))
-    print ("N_A: " + str(Netshare.N_A))
-    print ("A_BOUND: " + str(Netshare.A_BOUND))
+    # N_A[0] has None for sample placeholders, followed by the action space shape
+    Netshare.DIM_A = [None]
+    if Constants.manual_dims:
+        Netshare.DIM_A.extend(Constants.DIMS_A)
+    else:    
+        Netshare.DIM_A.extend(np.asarray(env.action_space.shape))
+    
+    # Currently not manual Boundary option
+    # A_BOUND[0] contains the minimums, A_BOUND[1] contains the maximums, each dependent on action space shape
+    Netshare.BOUND_A = np.vstack((np.array(env.action_space.low), np.array(env.action_space.high)))
+
+    print ("N_S: " + str(Netshare.DIM_S))
+    print ("N_A: " + str(Netshare.DIM_A))
+    print ("A_BOUND: " + str(Netshare.BOUND_A))
 
     with tf.device("/cpu:0"):
         #TODO die optimizer aufräumen
