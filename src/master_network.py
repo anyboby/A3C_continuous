@@ -61,38 +61,33 @@ class MasterNetwork(object):
         w_init = tf.random_normal_initializer(0., .1)
         with tf.variable_scope('actor'):
             ######## CarRacing Actor ######### 
-            # l_conv1 = tf.layers.conv2d(self.s, 16, (8,8), strides=(3,3), activation=tf.nn.relu6, kernel_initializer=w_init, name="conv1")
-            # l_conv2 = tf.layers.conv2d(l_conv1, 8, (4,4), strides=(2,2), activation=tf.nn.relu6, kernel_initializer=w_init, name="conv2")
-            # l_fl = tf.layers.flatten(l_conv2, name='fl_a')
-            # l_a = tf.layers.dense(l_fl, 200, tf.nn.relu6, kernel_initializer=w_init, name='la')
-            # # N_A[0] has None placeholder for samples, so the real number of actions if in N_A[1]
-            # mu = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.tanh, kernel_initializer=w_init, name='mu')
-            # sigma = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.softplus, kernel_initializer=w_init, name='sigma')
+            l_conv1 = tf.layers.conv2d(self.s, 16, (8,8), strides=(3,3), activation=tf.nn.relu6, kernel_initializer=w_init, name="conv1")
+            l_conv2 = tf.layers.conv2d(l_conv1, 8, (4,4), strides=(2,2), activation=tf.nn.relu6, kernel_initializer=w_init, name="conv2")
+            l_fl = tf.layers.flatten(l_conv2, name='fl_a')
+            l_a = tf.layers.dense(l_fl, 250, tf.nn.relu6, kernel_initializer=w_init, name='la')
+            # N_A[0] has None placeholder for samples, so the real number of actions if in N_A[1]
+            mu = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.tanh, kernel_initializer=w_init, name='mu')
+            sigma = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.softplus, kernel_initializer=w_init, name='sigma')
             ####################################
             
             
             ######## Pendulum Actor ######### 
-            l_a = tf.layers.dense(self.s, 200, tf.nn.relu6, kernel_initializer=w_init, name='la')
-            mu = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.tanh, kernel_initializer=w_init, name='mu')
-            sigma = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.softplus, kernel_initializer=w_init, name='sigma')
+            # l_a = tf.layers.dense(self.s, 200, tf.nn.relu6, kernel_initializer=w_init, name='la')
+            # mu = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.tanh, kernel_initializer=w_init, name='mu')
+            # sigma = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.softplus, kernel_initializer=w_init, name='sigma')
             ####################################
-            #print("N_A[1] shape: " + str(Netshare.N_A[1]))
-            #print("l_a shape: " + str(l_a.shape))
-            #print("l_f shape: " + str(l_f.shape))
-            #print("self.s shape: " + str(self.s.shape))
-            #print("mu shape2: " + str(mu.shape))u
-
+            
         with tf.variable_scope('critic'):
             
             ######## CarRacing Critic ########
-            # l_c = tf.layers.dense(l_fl, 100, tf.nn.relu6, kernel_initializer=w_init, name='lc')
-            # v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='v')  # state value
+            l_c = tf.layers.dense(l_fl, 125, tf.nn.relu6, kernel_initializer=w_init, name='lc')
+            v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='v')  # state value
             ##################################
 
 
             ######## Pendulum Critic ########
-            l_c = tf.layers.dense(self.s, 100, tf.nn.relu6, kernel_initializer=w_init, name='lc')
-            v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='v')  # state value
+            # l_c = tf.layers.dense(self.s, 100, tf.nn.relu6, kernel_initializer=w_init, name='lc')
+            # v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='v')  # state value
             ##################################
 
         a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/actor')

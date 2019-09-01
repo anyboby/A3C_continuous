@@ -50,7 +50,8 @@ class Agent(threading.Thread):
 
                 with Agent.env_lock:
                     #print("action: " + str(a),flush=True)
-                    img_rgb, r, done, info = self.env.step(a)
+                    for Constants.SKIP_STEPS:    
+                        img_rgb, r, done, info = self.env.step(a)
                 
                 done = True if ep_t == Constants.MAX_EP_STEP - 1 else False
 
@@ -80,11 +81,6 @@ class Agent(threading.Thread):
                     done = True
                     s_ = None
                 ####################################################
-
-
-
-
-
 
                 buffer_s.append([s])
                 buffer_a.append([a])
