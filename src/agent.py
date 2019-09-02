@@ -162,7 +162,7 @@ class Agent(threading.Thread):
                         self.AC.a_his: buffer_a,
                         self.AC.v_target: buffer_v_target,
                     }
-                    self.AC.update_global(feed_dict)
+                    self.AC.update_global(feed_dict, write_summaries=True)
                     buffer_s, buffer_a, buffer_r = [], [], []
                     self.AC.pull_global()
 

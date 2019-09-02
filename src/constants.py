@@ -16,15 +16,15 @@ MAX_GLOBAL_EP = 250
 GLOBAL_NET_SCOPE = "Global_Net"
 UPDATE_GLOBAL_ITER = 10  # very important param
 
-TOGGLE_NSTEP = True 
+TOGGLE_NSTEP = False 
 GAMMA_N = 0.99
 N_STEP_RETURN = 5
 GAMMA_NN = GAMMA_N ** N_STEP_RETURN
 
 GAMMA_V = 0.9
 ENTROPY_BETA = 0.01
-LR_A = 0.0001    # learning rate for actor
-LR_C = 0.001    # learning rate for critic
+LR_A = 0.0005    # learning rate for actor
+LR_C = 0.005    # learning rate for critic
 GLOBAL_RUNNING_R = []
 GLOBAL_EP = 0
 TF_DEVICE = "/gpu:0"
@@ -49,7 +49,8 @@ DIMS_A = [ACTIONS]
 
 #RENDERING AND OUTPUTS
 OUTPUT_GRAPH = True
-LOG_DIR = "./log"
+LOG_DIR = "./log4"
+LOG_DIR2 = "./log4"
 WAITKEY = 1
 RENDER = False
 IMSHOW = True

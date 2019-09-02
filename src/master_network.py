@@ -16,13 +16,25 @@ class MasterNetwork(object):
                 self.s = tf.placeholder(tf.float32, Netshare.DIM_S, 'S')
                 self.a_his = tf.placeholder(tf.float32, Netshare.DIM_A, 'A')
                 self.v_target = tf.placeholder(tf.float32, [None, 1], 'Vtarget')
+                self.summaries = []
+
+                #mainly for tensorboard recordings
+                l2_norm = lambda t: tf.sqrt(tf.reduce_sum(tf.pow(t, 2)))
 
                 mu, sigma, self.v, self.a_params, self.c_params = self._build_net(scope)
 
                 td = tf.subtract(self.v_target, self.v, name='TD_error')
                 with tf.name_scope('c_loss'):
                     self.c_loss = tf.reduce_mean(tf.square(td))
-
+                
+                summary_v = tf.summary.scalar("v", l2_norm(self.v))
+                self.summaries.append(summary_v)
+                summary_adv = tf.summary.scalar("adv", l2_norm(td))
+                self.summaries.append(summary_adv)
+                summary_c_loss = tf.summary.scalar("c_loss", l2_norm(self.c_loss))
+                self.summaries.append(summary_c_loss)
+                summary_r = tf.summary.scalar("v_target", l2_norm(self.v_target))
+                self.summaries.append(summary_r)
 
 
                 #choose actions from normal dist
@@ -30,9 +42,14 @@ class MasterNetwork(object):
                     mu, sigma = mu * Netshare.BOUND_A[1], sigma + 1e-4
                 normal_dist = tf.distributions.Normal(mu, sigma)
 
+
+                summary_mu = tf.summary.scalar("mu", l2_norm(mu))
+                self.summaries.append(summary_mu)
+                summary_sigma = tf.summary.scalar("sigma", l2_norm(sigma))
+                self.summaries.append(summary_sigma)
                 ##### Manual Biases #####
-                if Constants.manual_dims:
-                    tf.add(mu, [0.0, 1 ,0.0])
+                #if Constants.manual_dims:
+                #    tf.add(mu, [0.0, 1 ,0.0])
                 #########################
 
                 
@@ -47,6 +64,9 @@ class MasterNetwork(object):
                     self.exp_v = Constants.ENTROPY_BETA * entropy + exp_v
                     self.a_loss = tf.reduce_mean(-self.exp_v)
 
+                summary_a_loss = tf.summary.scalar("a_loss", l2_norm(self.a_loss))
+                self.summaries.append(summary_a_loss)
+
                 with tf.name_scope('choose_a'):  # use local params to choose action
                     self.A = tf.clip_by_value(tf.squeeze(normal_dist.sample(1), axis=[0, 1]), Netshare.BOUND_A[0], Netshare.BOUND_A[1])
                 with tf.name_scope('local_grad'):
@@ -54,6 +74,14 @@ class MasterNetwork(object):
                     self.c_grads = tf.gradients(self.c_loss, self.c_params)
                 #print("sigma shape: " + str(self.A))
 
+                # summary_grads_a = tf.summary.scalar("grads_a", l2_norm(self.a_grads))
+                # self.summaries.append(summary_grads_a)
+                # summary_grads_c = tf.summary.scalar("grads_c", l2_norm(self.c_grads))
+                # self.summaries.append(summary_grads_c)
+
+                # Merge all the summaries and write them out to /tmp/mnist_logs (by default)
+                self.merged = tf.summary.merge(self.summaries)
+                self.train_writer = tf.summary.FileWriter(Constants.LOG_DIR2)
 
             with tf.name_scope('sync'):
                 with tf.name_scope('pull'):
@@ -67,10 +95,12 @@ class MasterNetwork(object):
         w_init = tf.random_normal_initializer(0., .1)
         with tf.variable_scope('actor'):
             ######## CarRacing Actor ######### 
-            l_conv1 = tf.layers.conv2d(self.s, 16, (8,8), strides=(4,4), activation=tf.nn.relu, kernel_initializer=w_init, name="conv1")
-            l_conv2 = tf.layers.conv2d(l_conv1, 8, (4,4), strides=(2,2), activation=tf.nn.relu, kernel_initializer=w_init, name="conv2")
-            l_fl = tf.layers.flatten(l_conv2, name="fl_a")
-            l_d = tf.layers.dense(l_fl, 150, tf.nn.relu, kernel_initializer=w_init, name="l_d")
+            l_conv1 = tf.layers.conv2d(self.s, 32, (6,6), strides=(2,2), activation=tf.nn.elu, kernel_initializer=w_init, name="conv1")
+            l_conv2 = tf.layers.conv2d(l_conv1, 16, (4,4), strides=(2,2), activation=tf.nn.elu, kernel_initializer=w_init, name="conv2")
+            l_conv3 = tf.layers.conv2d(l_conv2, 16, (3,3), strides=(2,2), activation=tf.nn.elu, kernel_initializer=w_init, name="conv3")
+
+            l_fl = tf.layers.flatten(l_conv3, name="fl_a")
+            l_d = tf.layers.dense(l_fl, 256, tf.nn.elu, kernel_initializer=w_init, name="l_d")
             #l_a = tf.layers.dense(l_d, 15, tf.nn.relu, kernel_initializer=w_init, name='la')
             # N_A[0] has None placeholder for samples, so the real number of actions if in N_A[1]
             mu = tf.layers.dense(l_d, Netshare.DIM_A[1], tf.nn.tanh, kernel_initializer=w_init, name='mu')
@@ -97,7 +127,6 @@ class MasterNetwork(object):
             v = tf.layers.dense(l_d, 1, kernel_initializer=w_init, name='v')  # state value
             ##################################
 
-
             ######## Pendulum Critic ######## lr ca. c: 0.001
             # l_c = tf.layers.dense(self.s, 100, tf.nn.relu6, kernel_initializer=w_init, name='lc')
             # v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='v')  # state value
@@ -112,8 +141,14 @@ class MasterNetwork(object):
         c_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/critic')
         return mu, sigma, v, a_params, c_params
 
-    def update_global(self, feed_dict):  # run by a local
-        Netshare.SESS.run([self.update_a_op, self.update_c_op], feed_dict)  # local grads applies to global net
+    def update_global(self, feed_dict, write_summaries=False):  # run by a local
+        # local grads applies to global net
+        if write_summaries:
+            _,_,summary = Netshare.SESS.run([self.update_a_op, self.update_c_op, self.merged], feed_dict)
+            self.train_writer.add_summary(summary, Constants.GLOBAL_EP)
+
+        else:
+            Netshare.SESS.run([self.update_a_op, self.update_c_op], feed_dict)  
 
     def pull_global(self):  # run by a local
         Netshare.SESS.run([self.pull_a_params_op, self.pull_c_params_op])
@@ -121,5 +156,5 @@ class MasterNetwork(object):
     def choose_action(self, s):  # run by a local
         s = s[np.newaxis, :]
         result = Netshare.SESS.run(self.A, {self.s: s})
-        print (result)
+        #print (result)
         return result
