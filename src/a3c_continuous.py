@@ -35,6 +35,8 @@ if __name__ == "__main__":
     else:    
         Netshare.DIM_A.extend(np.asarray(env.action_space.shape))
     
+    print (env.action_space.shape)
+
     # Currently not manual Boundary option
     # A_BOUND[0] contains the minimums, A_BOUND[1] contains the maximums, each dependent on action space shape
     Netshare.BOUND_A = np.vstack((np.array(env.action_space.low), np.array(env.action_space.high)))
@@ -54,7 +56,7 @@ if __name__ == "__main__":
             i_name = 'W_%i' % i   # worker name
             workers.append(Agent(i_name, GLOBAL_AC))
         # Create one worker with opencv showing 
-        workers.append(Agent("W_%i"%Constants.N_WORKERS, GLOBAL_AC, cvshow=True))
+        workers.append(Agent("W_%i"%Constants.N_WORKERS, GLOBAL_AC, cvshow=Constants.IMSHOW, render=Constants.RENDER))
 
     Netshare.SESS.run(tf.global_variables_initializer())
 

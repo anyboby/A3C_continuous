@@ -29,6 +29,12 @@ class MasterNetwork(object):
                 with tf.name_scope('wrap_a_out'):
                     mu, sigma = mu * Netshare.BOUND_A[1], sigma + 1e-4
                 normal_dist = tf.distributions.Normal(mu, sigma)
+
+                ##### Manual Biases #####
+                if Constants.manual_dims:
+                    tf.add(mu, [0.0, 1 ,0.0])
+                #########################
+
                 
                 #print("mu shape: " + str(mu.shape))
                 #print("sigma shape: " + str(sigma.shape))
@@ -61,18 +67,25 @@ class MasterNetwork(object):
         w_init = tf.random_normal_initializer(0., .1)
         with tf.variable_scope('actor'):
             ######## CarRacing Actor ######### 
-            l_conv1 = tf.layers.conv2d(self.s, 16, (8,8), strides=(3,3), activation=tf.nn.relu6, kernel_initializer=w_init, name="conv1")
-            l_conv2 = tf.layers.conv2d(l_conv1, 8, (4,4), strides=(2,2), activation=tf.nn.relu6, kernel_initializer=w_init, name="conv2")
-            l_fl = tf.layers.flatten(l_conv2, name='fl_a')
-            l_a = tf.layers.dense(l_fl, 250, tf.nn.relu6, kernel_initializer=w_init, name='la')
+            l_conv1 = tf.layers.conv2d(self.s, 16, (8,8), strides=(4,4), activation=tf.nn.relu, kernel_initializer=w_init, name="conv1")
+            l_conv2 = tf.layers.conv2d(l_conv1, 8, (4,4), strides=(2,2), activation=tf.nn.relu, kernel_initializer=w_init, name="conv2")
+            l_fl = tf.layers.flatten(l_conv2, name="fl_a")
+            l_d = tf.layers.dense(l_fl, 150, tf.nn.relu, kernel_initializer=w_init, name="l_d")
+            #l_a = tf.layers.dense(l_d, 15, tf.nn.relu, kernel_initializer=w_init, name='la')
             # N_A[0] has None placeholder for samples, so the real number of actions if in N_A[1]
-            mu = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.tanh, kernel_initializer=w_init, name='mu')
-            sigma = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.softplus, kernel_initializer=w_init, name='sigma')
+            mu = tf.layers.dense(l_d, Netshare.DIM_A[1], tf.nn.tanh, kernel_initializer=w_init, name='mu')
+            sigma = tf.layers.dense(l_d, Netshare.DIM_A[1], tf.nn.softplus, kernel_initializer=w_init, name='sigma')
             ####################################
             
-            
-            ######## Pendulum Actor ######### 
+            ######## Pendulum Actor #########  lr ca. a: 0.0001
             # l_a = tf.layers.dense(self.s, 200, tf.nn.relu6, kernel_initializer=w_init, name='la')
+            # mu = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.tanh, kernel_initializer=w_init, name='mu')
+            # sigma = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.softplus, kernel_initializer=w_init, name='sigma')
+            ####################################
+
+            ######## MountainCar Actor #########  lr ca. a:0.003
+            # l_a = tf.layers.dense(self.s, 40, tf.nn.relu6, kernel_initializer=w_init, name='la')
+            # #l_a2 = tf.layers.dense(l_a, 1, tf.nn.relu6, kernel_initializer=w_init, name='la2')
             # mu = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.tanh, kernel_initializer=w_init, name='mu')
             # sigma = tf.layers.dense(l_a, Netshare.DIM_A[1], tf.nn.softplus, kernel_initializer=w_init, name='sigma')
             ####################################
@@ -80,15 +93,20 @@ class MasterNetwork(object):
         with tf.variable_scope('critic'):
             
             ######## CarRacing Critic ########
-            l_c = tf.layers.dense(l_fl, 125, tf.nn.relu6, kernel_initializer=w_init, name='lc')
-            v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='v')  # state value
+            #l_c = tf.layers.dense(l_d, 5, tf.nn.relu6, kernel_initializer=w_init, name='lc')
+            v = tf.layers.dense(l_d, 1, kernel_initializer=w_init, name='v')  # state value
             ##################################
 
 
-            ######## Pendulum Critic ########
+            ######## Pendulum Critic ######## lr ca. c: 0.001
             # l_c = tf.layers.dense(self.s, 100, tf.nn.relu6, kernel_initializer=w_init, name='lc')
             # v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='v')  # state value
             ##################################
+
+            ######## MountainCar Critic ######### lr ca. c:0.03
+            # #l_c = tf.layers.dense(l_a, 5, tf.nn.relu6, kernel_initializer=w_init, name='lc')
+            # v = tf.layers.dense(l_a, 1, kernel_initializer=w_init, name='v')  # state value
+            ####################################
 
         a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/actor')
         c_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/critic')
@@ -103,4 +121,5 @@ class MasterNetwork(object):
     def choose_action(self, s):  # run by a local
         s = s[np.newaxis, :]
         result = Netshare.SESS.run(self.A, {self.s: s})
+        print (result)
         return result

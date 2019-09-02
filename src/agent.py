@@ -12,12 +12,15 @@ import threading
 class Agent(threading.Thread):
     env_lock = threading.Lock()
     
-    def __init__(self, name, globalAC, cvshow = False):
+    def __init__(self, name, globalAC, cvshow = False, render = False):
         threading.Thread.__init__(self)
         self.env = gym.make(Constants.GAME).unwrapped
         self.name = name
         self.AC = MasterNetwork(name, globalAC)
         self.cvshow = cvshow
+        self.render = render
+        self.memory = [] # n-step return memory
+        self.R = 0 # N Step Return
 
     def work(self):
         #global GLOBAL_RUNNING_R, GLOBAL_EP
@@ -49,13 +52,15 @@ class Agent(threading.Thread):
                 a = self.AC.choose_action(s)
 
                 with Agent.env_lock:
+                    r = 0
                     #print("action: " + str(a),flush=True)
-                    for Constants.SKIP_STEPS:    
-                        img_rgb, r, done, info = self.env.step(a)
+                    for i in range(Constants.SKIP_STEPS+1):    
+                        img_rgb, r_inc, done, info = self.env.step(a)
+                        r = r+r_inc
                 
                 done = True if ep_t == Constants.MAX_EP_STEP - 1 else False
 
-                ##### specific block for manual state space      ######
+                ##### specific block for manual state space    ######
                 if Constants.manual_dims:
                     s_ = s
                     if not done:
@@ -66,7 +71,8 @@ class Agent(threading.Thread):
                         s_[:,:,Constants.STATE_STACK-1] = img #append new state to stack
                     else: 
                         s_ = None
-                #######################################################
+                #####################################################
+
                 # else take env state as is
                 else:
                     s_ = img_rgb
@@ -82,9 +88,64 @@ class Agent(threading.Thread):
                     s_ = None
                 ####################################################
 
-                buffer_s.append([s])
-                buffer_a.append([a])
-                buffer_r.append((r+8)/8)    # normalize
+                if Constants.TOGGLE_NSTEP:
+                    ########## N-Step Return ###########################
+                    # train receives a set of samples including state, action, reward and the next state
+                    # in order to send these to the memory, an array denoting the current actions position in 
+                    # the total range of possible actions is created and sent to the memory
+                    ####################################################
+
+                    GAMMA_N = Constants.GAMMA_N
+                    GAMMA_NN = Constants.GAMMA_NN
+
+                    """
+                    returns a tupel array containing the state, action, discounted rewards (self.R) and n-th final state after n steps
+                    """
+                    def get_sample(memory, n):
+                        s, a, _, _ = memory[0]
+                        _, _, _, s_ = memory[n-1]
+                        
+                        return s, a, self.R, s_
+                    
+                    self.memory.append ((s, a, r, s_))
+                    
+                    self.R = (self.R + r * GAMMA_NN) / GAMMA_N
+
+                    if s_ is None:
+                        while len(self.memory) > 0:
+                            n = len(self.memory)
+                            s, a, R, s_ = get_sample(self.memory, n)
+                            
+                            buffer_s.append([s])
+                            buffer_a.append([a])
+                            buffer_r.append((R+8)/8)    # normalize
+
+                            #@MO DIEHIER NOCH CHECKEN
+                            self.R = (self.R - self.memory[0][2]) / GAMMA_N
+                            self.memory.pop(0)
+                        self.R = 0
+                    
+                    if len(self.memory) >= Constants.N_STEP_RETURN:
+                        s, a, R, s_ = get_sample(self.memory, Constants.N_STEP_RETURN)
+
+                        buffer_s.append([s])
+                        buffer_a.append([a])
+                        buffer_r.append((R+8)/8)    # normalize
+                    
+                        self.memory.pop(0)    
+
+                        #### Interesting: recalculating R explicitly because the recursive version is numerically instable 
+                        #### to disurbances, they get propagated and amplified.
+                        #### e.g. for n = 4 now R becomes
+                        #### R = r_1*γ + r_2*γ²+r_3*γ³
+                        self.R = 0
+                        for i in range(Constants.N_STEP_RETURN-2):
+                            self.R = self.R + self.memory[i][2]*GAMMA_N**(i+1)
+                    #################### End N-Step Return ##################
+                else:
+                    buffer_s.append([s])
+                    buffer_a.append([a])
+                    buffer_r.append((r+8)/8)    # normalize
                 if total_step % Constants.UPDATE_GLOBAL_ITER == 0 or done:   # update global and assign to local net
                     if done:
                         v_s_ = 0   # terminal
@@ -92,7 +153,7 @@ class Agent(threading.Thread):
                         v_s_ = Netshare.SESS.run(self.AC.v, {self.AC.s: s_[np.newaxis, :]})[0, 0]
                     buffer_v_target = []
                     for r in buffer_r[::-1]:    # reverse buffer r
-                        v_s_ = r + Constants.GAMMA * v_s_
+                        v_s_ = r + Constants.GAMMA_V * v_s_
                         buffer_v_target.append(v_s_)
                     buffer_v_target.reverse()
                     buffer_s, buffer_a, buffer_v_target = np.vstack(buffer_s), np.vstack(buffer_a), np.vstack(buffer_v_target)
@@ -104,8 +165,12 @@ class Agent(threading.Thread):
                     self.AC.update_global(feed_dict)
                     buffer_s, buffer_a, buffer_r = [], [], []
                     self.AC.pull_global()
-                
-                #skip frames for speed
+
+
+                # render if set
+                if self.render:
+                    self.env.render()
+                # display cv if set           
                 if self.cvshow:
                     cv2.imshow("image", s)
                     cv2.waitKey(Constants.WAITKEY)
@@ -126,6 +191,7 @@ class Agent(threading.Thread):
                           )
                     Constants.GLOBAL_EP += 1
                     break
+
 
 
     def _process_img(self, img):
