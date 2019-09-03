@@ -9,10 +9,10 @@ import threading
 #MountainCarContinuous-v0
 
 
-GAME = "CarRacing-v0"
+GAME = "Pendulum-v0"
 N_WORKERS = 4   #multiprocessing.cpu_count()
-MAX_EP_STEP = 1000
-MAX_GLOBAL_EP = 250
+MAX_EP_STEP = 200
+MAX_GLOBAL_EP = 2000
 GLOBAL_NET_SCOPE = "Global_Net"
 UPDATE_GLOBAL_ITER = 10  # very important param
 
@@ -23,8 +23,8 @@ GAMMA_NN = GAMMA_N ** N_STEP_RETURN
 
 GAMMA_V = 0.9
 ENTROPY_BETA = 0.01
-LR_A = 0.0005    # learning rate for actor
-LR_C = 0.005    # learning rate for critic
+LR_A = 0.0001    # learning rate for actor
+LR_C = 0.001    # learning rate for critic
 GLOBAL_RUNNING_R = []
 GLOBAL_EP = 0
 TF_DEVICE = "/gpu:0"
@@ -37,7 +37,7 @@ SKIP_STEPS = 0 #huge difference for mountaincar (try 1,2,3 a.s.o)
 # manual_dims is activated, state and action space can be manually set
 # if deactivated, state and action space of env are used automatically as 
 # network in/output
-manual_dims = True
+manual_dims = False
 ### CarRacing Dims ###
 STATE_STACK = 4
 STATE_WIDTH = 84
@@ -49,8 +49,8 @@ DIMS_A = [ACTIONS]
 
 #RENDERING AND OUTPUTS
 OUTPUT_GRAPH = True
-LOG_DIR = "./log4"
-LOG_DIR2 = "./log4"
+LOG_DIR = "./log"
+LOG_DIR2 = "./log"
 WAITKEY = 1
 RENDER = False
 IMSHOW = True
