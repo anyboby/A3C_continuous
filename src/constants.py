@@ -14,11 +14,11 @@ N_WORKERS = 4   #multiprocessing.cpu_count()
 MAX_EP_STEP = 200
 MAX_GLOBAL_EP = 2000
 GLOBAL_NET_SCOPE = "Global_Net"
-UPDATE_GLOBAL_ITER = 10  # very important param
+UPDATE_GLOBAL_ITER = 8  # very important param
 
-TOGGLE_NSTEP = False 
-GAMMA_N = 0.99
-N_STEP_RETURN = 5
+TOGGLE_NSTEP = True 
+GAMMA_N = 0.95
+N_STEP_RETURN = 8
 GAMMA_NN = GAMMA_N ** N_STEP_RETURN
 
 GAMMA_V = 0.9
@@ -37,7 +37,7 @@ SKIP_STEPS = 0 #huge difference for mountaincar (try 1,2,3 a.s.o)
 # manual_dims is activated, state and action space can be manually set
 # if deactivated, state and action space of env are used automatically as 
 # network in/output
-manual_dims = False
+manual_dims = False 
 ### CarRacing Dims ###
 STATE_STACK = 4
 STATE_WIDTH = 84

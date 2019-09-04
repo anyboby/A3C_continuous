@@ -26,7 +26,7 @@ class Agent(threading.Thread):
         #global GLOBAL_RUNNING_R, GLOBAL_EP
 
         total_step = 1
-        buffer_s, buffer_a, buffer_r = [], [], []
+        buffer_s, buffer_a, buffer_r, buffer_R = [], [], [], []
 
         while not Netshare.COORD.should_stop() and Constants.GLOBAL_EP < Constants.MAX_GLOBAL_EP:
 
@@ -88,6 +88,9 @@ class Agent(threading.Thread):
                     s_ = None
                 ####################################################
 
+                # normalize r
+                r = (r+8)/8
+
                 if Constants.TOGGLE_NSTEP:
                     ########## N-Step Return ###########################
                     # train receives a set of samples including state, action, reward and the next state
@@ -118,7 +121,8 @@ class Agent(threading.Thread):
                             
                             buffer_s.append([s])
                             buffer_a.append([a])
-                            buffer_r.append((R+8)/8)    # normalize
+                            buffer_R.append(R)    # normalize
+                            buffer_r.append(r)
 
                             #@MO DIEHIER NOCH CHECKEN
                             self.R = (self.R - self.memory[0][2]) / GAMMA_N
@@ -128,10 +132,13 @@ class Agent(threading.Thread):
                     if len(self.memory) >= Constants.N_STEP_RETURN:
                         s, a, R, s_ = get_sample(self.memory, Constants.N_STEP_RETURN)
 
+                        ## get critic value to determine future reward approx
+                        v_s_ = Netshare.SESS.run(self.AC.v, {self.AC.s: s_[np.newaxis, :]})[0, 0]
                         buffer_s.append([s])
                         buffer_a.append([a])
-                        buffer_r.append((R+8)/8)    # normalize
-                    
+                        buffer_R.append(R+Constants.GAMMA_NN*v_s_)    # normalize
+                        buffer_r.append(r)
+
                         self.memory.pop(0)    
 
                         #### Interesting: recalculating R explicitly because the recursive version is numerically instable 
@@ -145,8 +152,11 @@ class Agent(threading.Thread):
                 else:
                     buffer_s.append([s])
                     buffer_a.append([a])
-                    buffer_r.append((r+8)/8)    # normalize
-                if total_step % Constants.UPDATE_GLOBAL_ITER == 0 or done:   # update global and assign to local net
+                    buffer_r.append(r)    
+                    buffer_R.append(r)
+
+                # if total_step % Constants.UPDATE_GLOBAL_ITER == 0 or done:   # update global and assign to local net
+                if len(buffer_R) is not 0 and len(buffer_R) % Constants.UPDATE_GLOBAL_ITER == 0 or done:   # update global and assign to local net
                     if done:
                         v_s_ = 0   # terminal
                     else:
@@ -156,14 +166,24 @@ class Agent(threading.Thread):
                         v_s_ = r + Constants.GAMMA_V * v_s_
                         buffer_v_target.append(v_s_)
                     buffer_v_target.reverse()
-                    buffer_s, buffer_a, buffer_v_target = np.vstack(buffer_s), np.vstack(buffer_a), np.vstack(buffer_v_target)
+                    #print (max(buffer_r))
+                    buffer_s, buffer_a = np.vstack(buffer_s), np.vstack(buffer_a)
+                    
+
+                    buffer_v_tar = []
+                    if Constants.TOGGLE_NSTEP:
+                        buffer_v_tar = np.vstack(buffer_R) # buffer_R contains the discounted reward INCLUDING 
+                                                           # PREDICTED DISCOUNTED VALUE, from N-Step return
+                    else:
+                        buffer_v_tar = np.vstack(buffer_v_target) # calculated discoutned reward from the above implementation
+                    #print()
                     feed_dict = {
                         self.AC.s: buffer_s,
                         self.AC.a_his: buffer_a,
-                        self.AC.v_target: buffer_v_target,
+                        self.AC.v_target: buffer_v_tar,
                     }
                     self.AC.update_global(feed_dict, write_summaries=True)
-                    buffer_s, buffer_a, buffer_r = [], [], []
+                    buffer_s, buffer_a, buffer_r, buffer_R = [], [], [], []
                     self.AC.pull_global()
 
 

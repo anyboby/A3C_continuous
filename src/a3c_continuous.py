@@ -56,7 +56,7 @@ if __name__ == "__main__":
             i_name = 'W_%i' % i   # worker name
             workers.append(Agent(i_name, GLOBAL_AC))
         # Create one worker with opencv showing 
-        workers.append(Agent("W_%i"%Constants.N_WORKERS, GLOBAL_AC, cvshow=Constants.IMSHOW, render=Constants.RENDER))
+        workers.append(Agent("W_%i"%(Constants.N_WORKERS-1), GLOBAL_AC, cvshow=Constants.IMSHOW, render=Constants.RENDER))
 
     Netshare.SESS.run(tf.global_variables_initializer())
 
